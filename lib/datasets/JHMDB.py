@@ -16,13 +16,17 @@ class JHMDB(imdb):
         else:
             self._image_set = './action_experiments/listfiles/' + image_set + '.testlist'
 
-        self._MOD = image_set.split('_')[1]
-        self._LEN = image_set.split('_')[2]
+        self._annot_path = "/home/lear/pweinzae/scratch/data/JHMDB/original/puppet_mask" # you only have annotations in RGB data folder        
         self._SPLIT = int(image_set.split('_')[-1])
-        self._data_path = None
-        self._annot_path = "/home/lear/pweinzae/scratch/data/JHMDB/original/puppet_mask" # you only have annotations in RGB data folder
-        if self._MOD=='RGB': self._data_path = '/home/lear/xpeng/data/JHMDB/frames'
-        if self._MOD=='FLOW': self._data_path = '/home/lear/xpeng/data/JHMDB/flows_color'
+
+        if 'RGB' in image_set and 'FLOW' in image_set: # for 2stream fusion
+            self._data_path = '/home/lear/xpeng/data/JHMDB/flows_color'
+        else:
+            self._MOD = image_set.split('_')[1]
+            self._LEN = image_set.split('_')[2]
+            self._data_path = None
+            if self._MOD=='RGB': self._data_path = '/home/lear/xpeng/data/JHMDB/frames'
+            if self._MOD=='FLOW': self._data_path = '/home/lear/xpeng/data/JHMDB/flows_color'
 
         self._classes = ('__background__', 
                          'brush_hair', 'catch', 'clap', 'climb_stairs', 'golf', 
@@ -127,6 +131,7 @@ class JHMDB(imdb):
         """
         Load image and bounding boxes info 
         """
+        index = index.split(',')[-1] # to support 2 stream filelist input
         videoname = os.path.dirname(index)
         # pdb.set_trace()
         frm = int(index.split('/')[-1].split('.')[0])

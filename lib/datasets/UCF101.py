@@ -1,9 +1,10 @@
 
 import datasets
-import os
+import os, copy
 from datasets.imdb import imdb
 import numpy as np
 import scipy.sparse
+
 import cPickle
 import subprocess
 import pdb
@@ -16,13 +17,16 @@ class UCF101(imdb):
             self._image_set = './action_experiments/listfiles/' + image_set + '.trainlist' # you need a full path for image list and data path
         else:
             self._image_set = './action_experiments/listfiles/' + image_set + '.testlist'
-        self._USE_MAT_GT = mat_annot_file!=None
-        self._MOD = image_set.split('_')[1]
-        self._LEN = image_set.split('_')[2]
-        self._data_path = None
+        self._USE_MAT_GT = mat_annot_file!=None        
         self._annot_path = "/home/lear/xpeng/data/UCF101/UCF101_24_Annotations" # you only have annotations in RGB data folder
-        if self._MOD=='RGB': self._data_path = '/home/lear/xpeng/data/UCF101/frames_240'
-        if self._MOD=='FLOW': self._data_path = '/home/lear/xpeng/data/UCF101/flows_color'
+        if 'RGB' in image_set and 'FLOW' in image_set:
+            self._data_path = '/home/lear/xpeng/data/UCF101/flows_color'
+        else:
+            self._MOD = image_set.split('_')[1]
+            self._LEN = image_set.split('_')[2]
+            self._data_path = None
+            if self._MOD=='RGB': self._data_path = '/home/lear/xpeng/data/UCF101/frames_240'
+            if self._MOD=='FLOW': self._data_path = '/home/lear/xpeng/data/UCF101/flows_color'
 
         self._classes = ('__background__', 
                          'Basketball', 'BasketballDunk', 'Biking', 'CliffDiving', 'CricketBowling', 
@@ -39,7 +43,7 @@ class UCF101(imdb):
         self.video_to_label = {v: self._class_to_ind[v.split('/')[0]] for v in self.videos }
 
         if mat_annot_file:
-            self._mat_gt = get_mat_gt(mat_annot_file)
+            self._mat_gt = self.get_mat_gt(mat_annot_file)
         # Default to roidb handler
         self._roidb_handler = self.gt_roidb
 
@@ -56,7 +60,7 @@ class UCF101(imdb):
             self.prepare_traintest()
 
         with open(self._image_set) as f:
-                image_index = [x.strip() for x in f.readlines()]
+            image_index = [x.strip() for x in f.readlines()] 
 
         aimage = os.path.basename(image_index[0])
         name, ext = aimage.split('.')
@@ -66,16 +70,14 @@ class UCF101(imdb):
 
     # roi database preparation
     def gt_roidb(self):
-
         cache_file = self.cache_path
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 roidb = cPickle.load(fid)
             print '{} gt roidb loaded from {}'.format(self.name, cache_file)
             return roidb
-
-        roidb = [self._load_UCF101_annotation(index)
-                for index in self.image_index]
+        
+        roidb = [self._load_UCF101_annotation(index) for index in self.image_index]
         with open(cache_file, 'wb') as fid:
             cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
         print 'wrote gt roidb to {}'.format(cache_file)
@@ -84,29 +86,42 @@ class UCF101(imdb):
 
     #####################################################################
     def get_mat_gt(self, mat_annot_file):
-        # get annot from bmvc
-        import h5py
-        f = h5py.File(mat_annot_file,'r')
+        # parse annot from mat file
+        import scipy.io as sio
+        f = sio.loadmat(mat_annot_file)['annot'][0]
 
-        # f['annot'].keys()
-        # [u'action', u'boxes', u'framenr', u'videoName']
         mat_gt = {}
-        n_total = f['annot']['action'].shape[1]
+        n_total = f.shape[0]
         for i in range(n_total):
-            bbox = f[f['annot']['boxes'][0,i]][:]
-            action  = ''.join([chr(c) for c in f[f['annot']['action'][0,i]]])
-            v = ''.join([chr(c) for c in f[f['annot']['videoName'][0,i]]])
-            videoname = "%s/%s" % (action,v)
-            mat_gt[videoname][framenr] = bbox
+            videoname = str(f[i][1][0])
+            mat_gt[videoname] = {}
+            ef = f[i][2][0][0][0][0,0]
+            sf = f[i][2][0][0][1][0,0]
+            for framenr in range(sf, ef+1):
+                mat_gt[videoname][framenr] = f[i][2][0][0][3][framenr-sf,:].astype(np.int32)
 
         return mat_gt
 
 
     def _load_UCF101_annotation(self, index):
-        videoname = os.path.dirname(index)
+        index = index.split(',')[-1] # to support 2 stream filelist input
+        videoname = os.path.dirname(index) 
         frm = int(index.split('/')[-1].split('.')[0])
         if self._USE_MAT_GT:
-            boxes = self._mat_gt[videoname][frm]
+            if videoname in self._mat_gt and frm in self._mat_gt[videoname]:
+                boxes = self._mat_gt[videoname][frm]
+                if boxes.ndim==1:
+                    boxes = boxes[np.newaxis, :]
+                    boxes[:,2] += (boxes[:,0]-1)
+                    boxes[:,3] += (boxes[:,1]-1)
+                    if not (boxes[:, 2] >= boxes[:, 0]).all():
+                        print index
+                        print boxes
+                else:
+                    pdb.set_trace()
+            else:
+                # print '{} {} has no box'.format(videoname, frm)
+                boxes = np.empty((0,4), dtype=np.int32) 
         else:
             boxes = self.get_annot_image_boxes(videoname, frm).astype(np.uint16)
         num_objs = boxes.shape[0]
@@ -220,6 +235,9 @@ class UCF101(imdb):
         for v in self.test_videos:
             assert not v in res
             res[v] = {}
-            tubes = self.get_annot_video(v)
+            if self._USE_MAT_GT:
+                pass
+            else:
+                tubes = self.get_annot_video(v)
             res[v] = {'tubes': tubes, 'gt_classes': self.video_to_label[v]}
         return res

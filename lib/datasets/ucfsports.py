@@ -16,12 +16,16 @@ class ucfsports(imdb):
         else:
             self._image_set = './action_experiments/listfiles/' + image_set + '.testlist'
 
-        self._MOD = image_set.split('_')[1]
-        self._LEN = image_set.split('_')[2]
-        self._data_path = None
         self._annot_path = '/home/lear/xpeng/data/ucf_sports_actions/UCFsports/data' # you only have annotations in RGB data folder
-        if self._MOD=='RGB': self._data_path = '/home/lear/xpeng/data/ucf_sports_actions/UCFsports/data'
-        if self._MOD=='FLOW': self._data_path = '/home/lear/xpeng/data/ucf_sports_actions/broxflow'
+
+        if 'RGB' in image_set and 'FLOW' in image_set: # for 2stream fusion
+            self._data_path = '/home/lear/xpeng/data/ucf_sports_actions/broxflow'
+        else:
+            self._MOD = image_set.split('_')[1]
+            self._LEN = image_set.split('_')[2]
+            self._data_path = None
+            if self._MOD=='RGB': self._data_path = '/home/lear/xpeng/data/ucf_sports_actions/UCFsports/data'
+            if self._MOD=='FLOW': self._data_path = '/home/lear/xpeng/data/ucf_sports_actions/broxflow'
 
         self._classes = ('__background__', 
                          'Diving', 'Golf', 'Kicking', 'Lifting', 'Riding', 
@@ -88,6 +92,7 @@ class ucfsports(imdb):
         """
         Load image and bounding boxes info 
         """
+        index = index.split(',')[-1] # to support 2 stream filelist input
         videoname = index.split('/')[0]
         frm = int(index.split('/')[-1].split('.')[0])
 
