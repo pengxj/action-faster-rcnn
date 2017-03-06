@@ -46,16 +46,16 @@ if __name__ == '__main__':
 
     if 'UCF101' in args.imdb: 
         data_test = UCF101(args.imdb, 'TEST')
-        frame_path = '/home/lear/xpeng/data/UCF101/frames_240'
-        flow_path = '/home/lear/xpeng/data/UCF101/flows_color'
+        frame_rootpath = '/home/lear/xpeng/data/UCF101/frames_240'
+        flow_rootpath = '/home/lear/xpeng/data/UCF101/flows_color'
     elif 'JHMDB' in args.imdb:
         data_test = JHMDB(args.imdb, 'TEST')
-        frame_path = '/home/lear/xpeng/data/JHMDB/frames'
-        flow_path = '/home/lear/xpeng/data/JHMDB/flows_color'
+        frame_rootpath = '/home/lear/xpeng/data/JHMDB/frames'
+        flow_rootpath = '/home/lear/xpeng/data/JHMDB/flows_color'
     elif 'UCF-Sports' in args.imdb:
         data_test = ucfsports(args.imdb, 'TEST')
-        frame_path = '/home/lear/xpeng/data/ucf_sports_actions/UCFsports/data'
-        flow_path = '/home/lear/xpeng/data/ucf_sports_actions/broxflow'
+        frame_rootpath = '/home/lear/xpeng/data/ucf_sports_actions/UCFsports/data'
+        flow_rootpath = '/home/lear/xpeng/data/ucf_sports_actions/broxflow'
 
     roidb = data_test.roidb
     keep_det_thr = args.thr
@@ -71,8 +71,8 @@ if __name__ == '__main__':
         n_fr = len(data_test.image_index)
         for i in range(n_fr):
             image_name, flow_name = data_test.image_index[i].split(',')
-            image_path = os.path.join(frame_path, image_name) # change to your own special root path
-            flow_path = os.path.join(flow_path, flow_name)
+            image_path = os.path.join(frame_rootpath, image_name) # change to your own special root path
+            flow_path = os.path.join(flow_rootpath, flow_name)
             pred_all_dets[flow_name] = action.detect_action_2strem(caffe_net, image_path,\
              flow_path, keep_det_thr, args.LEN) # the flow_name used as a key since we also use the last one in UCF101 class
         with open(args.savepath,'w') as fid:
