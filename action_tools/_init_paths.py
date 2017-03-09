@@ -18,10 +18,7 @@ def add_path(path):
 this_dir = osp.dirname(__file__)
 
 #Add caffe to PYTHONPATH
-if 'Ubuntu' in os.uname()[-2]: 
-    caffe_path = '/scratch/gpuhost9/vsydorov/libraries/caffe/caffe_latest_rcnn_ubuntu/python'
-else: # Fedora
-    caffe_path = '/home/lear/xpeng/code/caffe-fast-rcnn-faster-rcnn-upstream-33f2445/python'
+caffe_path = osp.join(this_dir,'..', 'caffe-fast-rcnn-faster-rcnn-upstream-33f2445', 'python')
 assert osp.exists(caffe_path)
 add_path(caffe_path)
 
