@@ -3,22 +3,28 @@ This repository is a strongly modified version for action detection originally f
 
 ### Installation
 1. Clone this reporsitory
-  ``` 
+  ```Shell
   git clone --recursive https://github.com/pengxj/action-faster-rcnn.git
   ```
+  
 2. Build the Cython modules which mainly compiles the nms module
-  ``` 
+  ```Shell 
   cd $THIS_ROOT/lib
   make
   ```
+  
 3. Build Caffe and pycaffe
-  ```
+  ```Shell
   cd $THIS_ROOT/caffe-fast-rcnn-faster-rcnn-upstream-33f2445
   # Now follow the Caffe installation instructions here:
   #   http://caffe.berkeleyvision.org/installation.html
   ```
-4. Dive into the code
-
+  
+4. Dive into the code(will be detailed later)
+  ```Shell
+  training script: ./action_experiments/scripts/train_action_det.sh
+  evaluation scripts: action_tools/action_util.py ucfsports_eval.py jhmdb_eval.py ucf101_eval.py fusion_eval.py
+  ```
 
 ### Citation
 
