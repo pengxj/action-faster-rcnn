@@ -39,6 +39,7 @@ class UCF101(imdb):
         self._image_index = self._load_image_set_index() # get the temporal anotation
 
         self.test_videos = sorted([l.split()[0][:-4] for l in file('./action_experiments/listfiles/UCF101_video_testlist01.txt')])
+        self.train_videos = sorted([l.split()[0][:-4] for l in file('./action_experiments/listfiles/UCF101_video_trainlist01.txt')])
         self.videos = sorted([l.split()[0][:-4] for l in file("./action_experiments/listfiles/UCF101_video_trainlist01.txt")]+ self.test_videos )        
         self.video_to_label = {v: self._class_to_ind[v.split('/')[0]] for v in self.videos }
 
@@ -233,6 +234,18 @@ class UCF101(imdb):
         assert self._phase=='TEST'
         res = {}
         for v in self.test_videos:
+            assert not v in res
+            res[v] = {}
+            if self._USE_MAT_GT:
+                pass
+            else:
+                tubes = self.get_annot_video(v)
+            res[v] = {'tubes': tubes, 'gt_classes': self.video_to_label[v]}
+        return res
+    def get_train_video_annotations(self):
+        assert self._phase=='TRAIN'
+        res = {}
+        for v in self.train_videos:
             assert not v in res
             res[v] = {}
             if self._USE_MAT_GT:

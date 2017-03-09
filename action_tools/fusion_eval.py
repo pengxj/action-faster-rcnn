@@ -40,14 +40,39 @@ if __name__ == '__main__':
     cfg.TEST.HAS_RPN = True
     cfg.TEST.SCALES = [600]
 
+    bTemporal = False
+    prior_length = None
     if 'RGB' in args.imdb and 'FLOW' in args.imdb:
         cfg.PIXEL_MEANSa = cfg.PIXEL_MEANS
         cfg.PIXEL_MEANSb = np.array([[[128., 128., 128.]*args.LEN]])
 
     if 'UCF101' in args.imdb: 
         data_test = UCF101(args.imdb, 'TEST')
+        data_train = UCF101(args.imdb, 'TRAIN')
         frame_rootpath = '/home/lear/xpeng/data/UCF101/frames_240'
         flow_rootpath = '/home/lear/xpeng/data/UCF101/flows_color'
+        bTemporal = True
+        # information for temporal localization
+        train_gt_v = data_train.get_train_video_annotations()
+        keys = train_gt_v.keys()
+        keys.sort()
+        prior_length = {}
+        global_cls = train_gt_v[keys[0]]['gt_classes']
+        global_len = 0.0
+        global_cnt = 0.0
+        for i in range(len(keys)):             
+            if not global_cls==train_gt_v[keys[i]]['gt_classes']:
+                print global_cls, global_len/global_cnt
+                prior_length[global_cls] = global_len/global_cnt
+                global_cls = train_gt_v[keys[i]]['gt_classes']
+                global_len = 0.0
+                global_cnt = 0.0
+            else:
+                global_cnt += len(train_gt_v[keys[i]]['tubes'])
+                for annot in train_gt_v[keys[i]]['tubes']:
+                    global_len += annot.shape[0]
+        prior_length[global_cls] = global_len/global_cnt
+
     elif 'JHMDB' in args.imdb:
         data_test = JHMDB(args.imdb, 'TEST')
         frame_rootpath = '/home/lear/xpeng/data/JHMDB/frames'
@@ -84,14 +109,20 @@ if __name__ == '__main__':
             gc.disable()
             pred_all_dets = pickle.load(fid)
             gc.enable()            
-    ap_all = action.evaluate_frameAP(roidb, pred_all_dets, data_test._classes)
-    print data_test._classes[1:]
-    print ap_all
-    print 'mean frame AP: {}'.format(np.mean(np.array(ap_all)))
+    # ap_all = action.evaluate_frameAP(roidb, pred_all_dets, data_test._classes)
+    # print data_test._classes[1:]
+    # print ap_all
+    # print 'mean frame AP: {}'.format(np.mean(np.array(ap_all)))
 
     # ==== video AP evaluation ====
     gt_video = data_test.get_test_video_annotations()
-    ap_all = action.evaluate_videoAP(gt_video, pred_all_dets, data_test._classes, 0.2, True)
-    print data_test._classes[1:]
-    print ap_all
-    print 'mean video AP: {}'.format(np.mean(np.array(ap_all)))
+    iou_thrs = [t/10.0 for t in range(1, 8)]
+    iou_thrs = [0.05] + iou_thrs
+    v_mAPs = {}
+    for iou_thr in iou_thrs:
+        ap_all = action.evaluate_videoAP(gt_video, pred_all_dets, data_test._classes, iou_thr, bTemporal, prior_length)
+        # print data_test._classes[1:]
+        # print ap_all
+        print 'mean video AP: {}'.format(np.mean(np.array(ap_all)))
+        v_mAPs[iou_thr] = np.mean(np.array(ap_all))
+    print v_mAPs

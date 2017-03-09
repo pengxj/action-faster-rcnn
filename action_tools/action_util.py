@@ -5,7 +5,7 @@ from fast_rcnn.nms_wrapper import nms
 import numpy as np 
 import os, pdb
 import cv2
-from fast_rcnn.test import im_detect
+from fast_rcnn.test import im_detect, im_detect_2stream
 
 
 def roidb_to_array(roidb):
@@ -69,6 +69,49 @@ def detect_action_img(net, im_file, CONF_THRESH = 0, LEN = 1, NMS_THRESH = 0.3):
             im[:,:,j*3:(j+1)*3] = im_1
     scores, boxes = im_detect(net, im)
     print ('{}, Detection for {:d} object proposals').format(im_file,boxes.shape[0])
+    finaldets = {}
+    num_cls = scores.shape[1] # including bkg
+    # dict_dets = {} # just for vis and save
+    for cls_ind in range(num_cls-1):
+        cls_ind += 1 # because we skipped background
+        cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
+        cls_scores = scores[:, cls_ind]
+        dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])).astype(np.float32)
+        keep = nms(dets, NMS_THRESH) ##
+        dets = dets[keep, :]
+        keep2 = list(np.where(dets[:, -1] >= CONF_THRESH)[0])
+        finaldets[cls_ind] = dets[keep2, :]
+    return finaldets
+
+def detect_action_2strem(net, im_file, flow_file, CONF_THRESH = 0, LEN = 1, NMS_THRESH = 0.3):
+    """Detect object classes in an image using pre-computed object proposals. 
+    return finaldets: dict of class index
+    """ 
+    def get_image_format(imfile):
+        name, ext = imfile.split('.')
+        return '{:0%d}.%s' % (len(name), ext)
+
+    im = cv2.imread(im_file)
+    assert im != None
+    if LEN==1:
+        flows = cv2.imread(flow_file)
+    else:
+        offset = LEN//2
+        impath = os.path.dirname(flow_file)
+        im_name = os.path.basename(flow_file)
+        img_format = get_image_format(im_name)
+        for j in xrange(LEN):
+            imnum = int(im_name.split('.')[0]) + j - offset
+            assert imnum>0        
+            imfile = img_format.format( imnum )
+            im_1 = cv2.imread(os.path.join(impath, imfile)) 
+            assert im_1 != None
+            if j==0:
+                flows = np.zeros((im_1.shape[0], im_1.shape[1], im_1.shape[2]*LEN), dtype=np.float32)
+            flows[:,:,j*3:(j+1)*3] = im_1
+    scores, boxes = im_detect_2stream(net, im, flows)
+
+    print ('{},{}, Detection for {:d} object proposals').format(im_file,flow_file,boxes.shape[0])
     finaldets = {}
     num_cls = scores.shape[1] # including bkg
     # dict_dets = {} # just for vis and save
@@ -170,8 +213,10 @@ def detect_action_video(caffe_net, v_path, LEN = 1, CONF_THRESH = 0.2, NMS_THRES
 
     cap.release()
     cv2.destroyAllWindows()
-    
-def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False):
+
+
+
+def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, prior_length = None):
     '''
     gt_videos: {vname:{tubes: [[frame_index, x1,y1,x2,y2]]}, {gt_classes: vlabel}} 
     all_boxes: {imgname:{cls_ind:array[x1,y1,x2,y2, cls_score]}}
@@ -186,7 +231,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
             for j in range(len(v_annot['tubes'])):
                 res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
         return res
-
     def imagebox_to_videts(img_boxes, CLASSES, savefile='temp_pred.pkl'):
         # return [label, video_index, [frame_index, [[x1,y1,x2,y2, score]] ] ]
         keys = all_boxes.keys()
@@ -225,13 +269,17 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         print cls_ind
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
-        ap = video_ap_one(gt, pred_cls, iou_thresh, bTemporal)
+        if bTemporal: 
+            cls_len = prior_length[cls_ind]
+        else:
+            cls_len = None
+        ap = video_ap_one(gt, pred_cls, iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
 
     return ap_all
 
     #
-def video_ap_one(gt, pred_videos, iou_thresh = 0.2, bTemporal=False):
+def video_ap_one(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtlen = None):
     '''
     gt: [ video_index, array[frame_index, x1,y1,x2,y2] ]
 
@@ -241,7 +289,7 @@ def video_ap_one(gt, pred_videos, iou_thresh = 0.2, bTemporal=False):
     pred = []
     for pred_v in pred_videos:
         video_index = pred_v[0]
-        pred_link_v = link_video_one(pred_v[1], False, None) # [array<frame_index, x1,y1,x2,y2, cls_score>]
+        pred_link_v = link_video_one(pred_v[1], True, gtlen) # [array<frame_index, x1,y1,x2,y2, cls_score>]
         for tube in pred_link_v:
             pred.append((video_index, tube))
 
@@ -444,14 +492,14 @@ def temporal_check(tubes, gt_L):
     # nframes x 6 array <frame> <x1> <y1> <x2> <y2> <score>
     # objective: max ( mean(score[L_d]) - (|gt_L - L_d| / gt_L) )
     save_tubes = []
-    for b in tubes:  #bbiou = iou2d(d2[:,1:5],b1)
-        nframes = b.shape[0]
-        edge_scores = np.array([iou2d(b[i,1:5],b[i+1,1:5])+b[i,5] for i in range(nframes-1)])
+    for tube in tubes:  #bbiou = iou2d(d2[:,1:5],b1)
+        nframes = tube.shape[0]
+        edge_scores = np.array([iou2d(tube[i,1:5],tube[i+1,1:5]) for i in range(nframes-1)]) # +tube[i,5]
         # if both overlap and cls score are low, then reverse the score, they should be remove from the tube
         ind = np.where(edge_scores<0.3)[0] + 1  
-        score = b[:, 5]
+        score = tube[:, 5]
         score[ind] = -score[ind]
         best_v, beststart, bestend = get_max_subset(score, gt_L)
-        trimed_b = b[beststart:bestend, :]
+        trimed_b = tube[int(beststart):int(bestend), :]
         save_tubes.append(trimed_b)
     return save_tubes
