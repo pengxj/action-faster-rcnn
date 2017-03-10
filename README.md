@@ -22,8 +22,10 @@ This repository is a strongly modified version for action detection originally f
   
 4. Dive into the code(will be detailed later)
   ```Shell
-  training script: ./action_experiments/scripts/train_action_det.sh
+  dataset classes: lib/datasets/ucfsports.py JHMDB.py UCF101.py
+  training script: action_experiments/scripts/train_action_det.sh
   evaluation scripts: action_tools/action_util.py ucfsports_eval.py jhmdb_eval.py ucf101_eval.py fusion_eval.py
+  script for merging 2 stream models: action_tools/net_surgery_rgbflow.py
   ```
 
 ### Citation
