@@ -172,7 +172,7 @@ def frame_ap_one(gt, pred, iou_thresh = 0.5):
             fp += 1
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn)
-        ap = pr_to_ap(pr)
+        ap = voc_ap(pr)
     return ap
 
 def detect_action_video(caffe_net, v_path, LEN = 1, CONF_THRESH = 0.2, NMS_THRESH = 0.3):
@@ -214,23 +214,103 @@ def detect_action_video(caffe_net, v_path, LEN = 1, CONF_THRESH = 0.2, NMS_THRES
     cap.release()
     cv2.destroyAllWindows()
 
+def evaluate_linked_res_videoAP(gt_videos, all_dets, CLASSES, iou_thresh = 0.2, bTemporal = False):
+    '''Evaluate saved already-linked video detections
 
+    Args:
+        gt_videos: {vname:{tubes: [[frame_index, x1,y1,x2,y2]]}, {gt_classes: vlabel}} 
+        all_dets:  {vname: [class_index, cls_score , array([frame_index, x1,y1,x2,y2, cls_score_for_frame])]}
+        CLASSES:
+
+    Returns:
+        average precision of all classes
+    '''
+    def format_vdets(vdets):
+        '''format video etections as [label, video_index, tube_score, array[frame_index, x1,y1,x2,y2, cls_score_for_frame] ]
+        '''
+        keys = vdets.keys()
+        keys.sort() 
+        res = []
+        for i in range(len(keys)):
+            v_det = vdets[keys[i]]
+            for det in v_det:
+                res.append([det[0]+1,i+1,det[1], det[2]])
+        return res
+
+    gt_videos_format = gt_to_videts(gt_videos)
+    pred_videos_format = format_vdets(all_dets)
+    ap_all = []    
+    for cls_ind, cls in enumerate(CLASSES[1:]):
+        cls_ind += 1
+        print cls_ind
+        gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
+        pred = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
+        
+        argsort_scores = np.argsort(-np.array([score for _,score, _ in pred])) 
+        pr = np.empty((len(pred)+1,2), dtype=np.float32)# precision,recall
+        pr[0,0] = 1.0
+        pr[0,1] = 0.0
+        fn = len(gt) #sum([len(a[1]) for a in gt])
+        fp = 0
+        tp = 0
+
+        gt_v_index = [g[0] for g in gt]
+        for i,k in enumerate(argsort_scores):
+            if i%100==0: print "%6.2f%% boxes processed, %d positives found, %d remain"%(100*float(i)/argsort_scores.size, tp, fn)
+            video_index, tube_score , boxes = pred[k]
+            ispositive = False
+            if video_index in gt_v_index:
+                gt_this_index, gt_this = [], []
+                for j, g in enumerate(gt):
+                    if g[0]==video_index:
+                        gt_this.append(g[1])
+                        gt_this_index.append(j)
+                if len(gt_this)>0:
+                    if bTemporal:
+                        iou = np.array([iou3dt(g,boxes[:,:5]) for g in gt_this])
+                    else:            
+                        if boxes.shape[0]>gt_this[0].shape[0]:
+                            # in case some frame don't have gt 
+                            iou = np.array([iou3d(g, boxes[int(g[0,0]-1):int(g[-1,0]),:5]) for g in gt_this]) 
+                        elif boxes.shape[0]<gt_this[0].shape[0]:
+                            # in flow case 
+                            iou = np.array([iou3d(g[int(boxes[0,0]-1):int(boxes[-1,0]),:], boxes[:,:5]) for g in gt_this]) 
+                        else:
+                            iou = np.array([iou3d(g, boxes[:,:5]) for g in gt_this]) 
+
+                    if iou.size>0: # on ucf101 if invalid annotation ....
+                        argmax = np.argmax(iou)
+                        if iou[argmax]>=iou_thresh:
+                            ispositive = True
+                            del gt[gt_this_index[argmax]]
+            if ispositive:
+                tp += 1
+                fn -= 1
+            else:
+                fp += 1
+            pr[i+1,0] = float(tp)/float(tp+fp)
+            pr[i+1,1] = float(tp)/float(tp+fn)
+        ap = voc_ap(pr)
+        ap_all.append(ap)
+
+    return ap_all    
+
+def gt_to_videts(gt_v):
+    # return  [label, video_index, [[frame_index, x1,y1,x2,y2]] ]
+    keys = gt_v.keys()
+    keys.sort()
+    res = []
+    for i in range(len(keys)):
+        v_annot = gt_v[keys[i]]
+        for j in range(len(v_annot['tubes'])):
+            res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
+    return res
 
 def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, prior_length = None):
     '''
     gt_videos: {vname:{tubes: [[frame_index, x1,y1,x2,y2]]}, {gt_classes: vlabel}} 
     all_boxes: {imgname:{cls_ind:array[x1,y1,x2,y2, cls_score]}}
     '''
-    def gt_to_videts(gt_v, savefile='temp_gt.pkl'):
-        # return  [label, video_index, [[frame_index, x1,y1,x2,y2]] ]
-        keys = gt_v.keys()
-        keys.sort()
-        res = []
-        for i in range(len(keys)):
-            v_annot = gt_v[keys[i]]
-            for j in range(len(v_annot['tubes'])):
-                res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
-        return res
     def imagebox_to_videts(img_boxes, CLASSES, savefile='temp_pred.pkl'):
         # return [label, video_index, [frame_index, [[x1,y1,x2,y2, score]] ] ]
         keys = all_boxes.keys()
@@ -338,7 +418,7 @@ def video_ap_one(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtlen = N
             fp += 1
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn)
-    ap = pr_to_ap(pr)
+    ap = voc_ap(pr)
 
     return ap
 
