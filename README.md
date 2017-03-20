@@ -35,7 +35,7 @@ If you just want to get the final video AP, you [download](https://drive.google.
 
 For example:
 
-After you run 'python action_tools/eval_linked_results.py --imdb UCF101_RGB_1_FLOW_5_split_0 --res path/to/ucf101_vdets_3scales_rgb1flow5.pkl' as an example, you should get the following video APs for different iou thresholds.
+After you run 'python action_tools/eval_linked_results.py --imdb UCF101_RGB_1_FLOW_5_split_0 --res path/to/ucf101_vdets_3scales_rgb1flow5.pkl' , you should get the following video APs for different iou thresholds.
 {0.05: 0.7881, 0.1: 0.7745, 0.2: 0.7320, 0.3: 0.6630, 0.4: 0.5604, 0.5: 0.3591, 0.6: 0.1469, 0.7: 0.0349}
 
 ### Citation
