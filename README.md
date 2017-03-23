@@ -28,7 +28,7 @@ This repository is a strongly modified version for action detection originally f
   script for merging 2 stream models: action_tools/net_surgery_rgbflow.py
   ```
 
-### Run xperiments
+### Run experiments
 The entire pipeline for two-stream rcnn includes optical flow extraction, r-cnn training, frame-level detecting, linking and evaluation. All these are included in this repository.
 
 If you just want to get the final video AP, you [download](https://drive.google.com/open?id=0B-DiRMXFmUKQVDBRTy12UVJ2enM) some linked results and run the eval_linked_results script.
