@@ -1,5 +1,6 @@
 # action-faster-rcnn
-This repository is a strongly modified version for action detection originally from [py-faster-rnn](https://github.com/rbgirshick/py-faster-rcnn.git). It wraps three popular action detection dataset classes: UCF-Sports, JHMDB, and UCF101. Also, it provides useful action detection evaluation scripts for both frame level and video level. 
+This repository is a strongly modified version for action detection originally from [py-faster-rnn](https://github.com/rbgirshick/py-faster-rcnn.git) for my ECCV16 paper. It wraps three popular action detection dataset classes: UCF-Sports, JHMDB, and UCF101. Also, it provides useful action detection evaluation scripts for both frame level and video level. 
+*Note the results on UCF101 are updated at https://hal.inria.fr/hal-01349107/file/eccv16-pxj-v3.pdf dut to some annotation  parsing errors.*
 
 ### Installation
 1. Clone this reporsitory
