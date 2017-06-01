@@ -32,7 +32,7 @@ This repository is a strongly modified version for action detection originally f
 ### Run experiments
 The entire pipeline for two-stream rcnn includes optical flow extraction, r-cnn training, frame-level detecting, linking and evaluation. All these are included in this repository.
 
-If you just want to get the final video AP, you [download](https://drive.google.com/open?id=0B-DiRMXFmUKQVDBRTy12UVJ2enM) some linked results and run the eval_linked_results script.
+If you just want to get the final video AP, you [download](https://drive.google.com/open?id=0B-DiRMXFmUKQVDBRTy12UVJ2enM) the UCF101 linked results and run the eval_linked_results script. The folder 'action_results' includes linked results for UCF-Sports and JHMDB datasets.
 
 For example:
 
