@@ -128,7 +128,7 @@ class ucfsports(imdb):
             tubes = []
             for i in range(num_objs):
                 annots[:, 1+2+4*i] += annots[:, 1+4*i]
-                annots[:, 1+3+4*i] += annots[:, 1+4*i]
+                annots[:, 1+3+4*i] += annots[:, 2+4*i]
                 idx = [0] + range(1+4*i, 5+4*i)
                 tube = annots[:,idx]
                 tubes.append(tube)
