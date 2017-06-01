@@ -41,15 +41,19 @@ python action_tools/eval_linked_results.py --imdb UCF101_RGB_1_FLOW_5_split_0 --
 
 python action_tools/eval_linked_results.py --imdb JHMDB_RGB_1_FLOW_5_split_2 --res action_results/jhmdb_s03_vdets_3scales_rgb1flow5.pkl
 
-{0.5: 0.71241516817470085, 0.4: 0.71241516817470085, 0.2: 0.71386646935452158, 0.05: 0.71386646935452158, 0.6: 0.70282496693015539, 0.3: 0.71336443511059011, 0.1: 0.71386646935452158, 0.7: 0.6008946290589593}
+{0.5: 0.7124, 0.4: 0.7124, 0.2: 0.7139, 0.05: 0.7139, 0.6: 0.7028, 0.3: 0.7134, 0.1: 0.7139, 0.7: 0.6009}
 
 python action_tools/eval_linked_results.py --imdb JHMDB_RGB_1_FLOW_5_split_1 --res action_results/jhmdb_s02_vdets_3scales_rgb1flow5.pkl
 
-{0.5: 0.73040266688590072, 0.4: 0.73603953592663274, 0.2: 0.74123205181651641, 0.05: 0.74140031704607723, 0.6: 0.70625582250097652, 0.3: 0.74123205181651641, 0.1: 0.74140031704607723, 0.7: 0.60041199192632866}
+{0.5: 0.7304, 0.4: 0.7360, 0.2: 0.7412, 0.05: 0.7414, 0.6: 0.7063, 0.3: 0.7412, 0.1: 0.7414, 0.7: 0.6004}
+
+python action_tools/eval_linked_results.py --imdb JHMDB_RGB_1_FLOW_5_split_0 --res action_results/jhmdb_s01_vdets_3scales_rgb1flow5.pkl
+
+{0.5: 0.7207, 0.4: 0.7240, 0.2: 0.7273, 0.05: 0.7299, 0.6: 0.6909, 0.3: 0.7244, 0.1: 0.7273, 0.7: 0.5974}
 
 python action_tools/eval_linked_results.py --imdb UCF-Sports_RGB_1_FLOW_5_split_0 --res action_results/ucfsports_vdets_3scales_rgb1flow5.pkl
 
-{0.5: 0.95115962117007291, 0.4: 0.95115962117007291, 0.2: 0.95115962117007291, 0.05: 0.95115962117007291, 0.6: 0.90341839515425337, 0.3: 0.95115962117007291, 0.1: 0.95115962117007291, 0.7: 0.73696637517048258}
+{0.5: 0.9512, 0.4: 0.9512, 0.2: 0.9512, 0.05: 0.9512, 0.6: 0.9034, 0.3: 0.9512, 0.1: 0.9512, 0.7: 0.7370}
 
 And for the 'imdb' option, you can find them in dir action_experiments/listfiles/ which are actually the names of files. 
 ### Citation
