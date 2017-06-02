@@ -34,10 +34,26 @@ The entire pipeline for two-stream rcnn includes optical flow extraction, r-cnn 
 
 If you just want to get the final video AP, you [download](https://drive.google.com/open?id=0B-DiRMXFmUKQVDBRTy12UVJ2enM) the UCF101 linked results and run the eval_linked_results script. The folder 'action_results' includes linked results for UCF-Sports and JHMDB datasets.
 
-For example:
+### video mAP results with different iou thresholds:
+python action_tools/eval_linked_results.py --imdb UCF101_RGB_1_FLOW_5_split_0 --res path/to/ucf101_vdets_3scales_rgb1flow5.pkl
 
-After you run 'python action_tools/eval_linked_results.py --imdb UCF101_RGB_1_FLOW_5_split_0 --res path/to/ucf101_vdets_3scales_rgb1flow5.pkl' , you should get the following video APs for different iou thresholds.
 {0.05: 0.7881, 0.1: 0.7745, 0.2: 0.7320, 0.3: 0.6630, 0.4: 0.5604, 0.5: 0.3591, 0.6: 0.1469, 0.7: 0.0349}
+
+python action_tools/eval_linked_results.py --imdb JHMDB_RGB_1_FLOW_5_split_2 --res action_results/jhmdb_s03_vdets_3scales_rgb1flow5.pkl
+
+{0.5: 0.7124, 0.4: 0.7124, 0.2: 0.7139, 0.05: 0.7139, 0.6: 0.7028, 0.3: 0.7134, 0.1: 0.7139, 0.7: 0.6009}
+
+python action_tools/eval_linked_results.py --imdb JHMDB_RGB_1_FLOW_5_split_1 --res action_results/jhmdb_s02_vdets_3scales_rgb1flow5.pkl
+
+{0.5: 0.7304, 0.4: 0.7360, 0.2: 0.7412, 0.05: 0.7414, 0.6: 0.7063, 0.3: 0.7412, 0.1: 0.7414, 0.7: 0.6004}
+
+python action_tools/eval_linked_results.py --imdb JHMDB_RGB_1_FLOW_5_split_0 --res action_results/jhmdb_s01_vdets_3scales_rgb1flow5.pkl
+
+{0.5: 0.7207, 0.4: 0.7240, 0.2: 0.7273, 0.05: 0.7299, 0.6: 0.6909, 0.3: 0.7244, 0.1: 0.7273, 0.7: 0.5974}
+
+python action_tools/eval_linked_results.py --imdb UCF-Sports_RGB_1_FLOW_5_split_0 --res action_results/ucfsports_vdets_3scales_rgb1flow5.pkl
+
+{0.5: 0.9512, 0.4: 0.9512, 0.2: 0.9512, 0.05: 0.9512, 0.6: 0.9034, 0.3: 0.9512, 0.1: 0.9512, 0.7: 0.7370}
 
 And for the 'imdb' option, you can find them in dir action_experiments/listfiles/ which are actually the names of files. 
 ### Citation
