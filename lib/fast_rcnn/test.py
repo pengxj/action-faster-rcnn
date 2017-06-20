@@ -17,9 +17,9 @@ import caffe
 from fast_rcnn.nms_wrapper import nms
 import cPickle
 from utils.blob import im_list_to_blob
-import os
+import os, pdb
 
-def _get_image_blob(im):
+def _get_image_blob(im, MEAN):
     """Converts an image into a network input.
 
     Arguments:
@@ -30,10 +30,8 @@ def _get_image_blob(im):
         im_scale_factors (list): list of image scales (relative to im) used
             in the image pyramid
     """
-    # import pdb
-    # pdb.set_trace()
     im_orig = im.astype(np.float32, copy=True)
-    im_orig -= cfg.PIXEL_MEANS
+    im_orig -= MEAN
 
     im_shape = im_orig.shape
     im_size_min = np.min(im_shape[0:2])
@@ -102,7 +100,7 @@ def _project_im_rois(im_rois, scales):
 def _get_blobs(im, rois):
     """Convert an image and RoIs within that image into network inputs."""
     blobs = {'data' : None, 'rois' : None}
-    blobs['data'], im_scale_factors = _get_image_blob(im)
+    blobs['data'], im_scale_factors = _get_image_blob(im, cfg.PIXEL_MEANS)
     if not cfg.TEST.HAS_RPN:
         blobs['rois'] = _get_rois_blob(rois, im_scale_factors)
     return blobs, im_scale_factors
@@ -184,6 +182,85 @@ def im_detect(net, im, boxes=None):
         pred_boxes = pred_boxes[inv_index, :]
 
     return scores, pred_boxes
+
+def _get_blobs_2stream(im, flow, rois):
+    """Convert an image and RoIs within that image into network inputs."""
+    blobs = {'data1' : None, 'data2': None, 'rois' : None}
+    blobs['dataa'], im_scale_factors = _get_image_blob(im, cfg.PIXEL_MEANSa)
+    blobs['datab'], im_scale_factors = _get_image_blob(flow, cfg.PIXEL_MEANSb)
+    if not cfg.TEST.HAS_RPN:
+        blobs['rois'] = _get_rois_blob(rois, im_scale_factors)
+    return blobs, im_scale_factors
+
+def im_detect_2stream(net, im, flow, boxes=None):
+
+    blobs, im_scales = _get_blobs_2stream(im, flow, boxes)
+    if cfg.DEDUP_BOXES > 0 and not cfg.TEST.HAS_RPN:
+        v = np.array([1, 1e3, 1e6, 1e9, 1e12])
+        hashes = np.round(blobs['rois'] * cfg.DEDUP_BOXES).dot(v)
+        _, index, inv_index = np.unique(hashes, return_index=True,
+                                        return_inverse=True)
+        blobs['rois'] = blobs['rois'][index, :]
+        boxes = boxes[index, :]
+    # pdb.set_trace()
+    # for i in range(im_scales.shape[0]):
+    if cfg.TEST.HAS_RPN:
+        im_blob = blobs['dataa']
+        blobs['im_info'] = np.array(
+            [[im_blob.shape[2], im_blob.shape[3], im_scales[0]]],
+            dtype=np.float32)
+
+        # reshape network inputs
+    net.blobs['dataa'].reshape(*(blobs['dataa'].shape))
+    net.blobs['datab'].reshape(*(blobs['datab'].shape))
+    if cfg.TEST.HAS_RPN:
+        net.blobs['im_info'].reshape(*(blobs['im_info'].shape))
+    else:
+        net.blobs['rois'].reshape(*(blobs['rois'].shape))
+
+    # do forward
+    forward_kwargs = {'dataa': blobs['dataa'].astype(np.float32, copy=False), 'datab': blobs['datab'].astype(np.float32, copy=False)}
+
+    if cfg.TEST.HAS_RPN:
+        forward_kwargs['im_info'] = blobs['im_info'].astype(np.float32, copy=False)
+    else:
+        forward_kwargs['rois'] = blobs['rois'].astype(np.float32, copy=False)
+
+    blobs_out = net.forward(**forward_kwargs)
+    if cfg.TEST.HAS_RPN:
+#            pdb.set_trace()
+        assert len(im_scales) == 1, "Only single-image batch implemented"
+        rgb_rois = net.blobs['rpn_roisa'].data.copy()
+        # unscale back to raw image space
+        rgb_boxes = rgb_rois[:, 1:5] / im_scales[0]
+
+        flow_rois = net.blobs['rpn_roisb'].data.copy()
+        # unscale back to raw image space
+        flow_boxes = flow_rois[:, 1:5] / im_scales[0]
+    if cfg.TEST.SVM:
+        # use the raw scores before softmax under the assumption they
+        # were trained as linear SVMs
+        scores = net.blobs['cls_score'].data
+    else:
+        # use softmax estimated probabilities
+        scores = blobs_out['cls_proba'] * 0.5 + blobs_out['cls_probb'] * 0.5
+
+
+    if cfg.TEST.BBOX_REG:
+        # Apply bounding-box regression deltas
+        rgb_box_deltas = blobs_out['bbox_preda']
+        rgb_tmpbox = bbox_transform_inv(rgb_boxes, rgb_box_deltas[:rgb_boxes.shape[0], :])
+        rgb_tmpbox = clip_boxes(rgb_tmpbox, im.shape)
+        flow_box_deltas = blobs_out['bbox_predb']
+        flow_tmpbox = bbox_transform_inv(flow_boxes, flow_box_deltas[rgb_boxes.shape[0]:,:])
+        flow_tmpbox = clip_boxes(flow_tmpbox, im.shape)
+        pred_boxes = np.vstack((rgb_tmpbox,flow_tmpbox))
+        
+
+
+    return scores, pred_boxes
+
+
 
 def vis_detections(im, class_name, dets, thresh=0.3):
     """Visual debugging of detections."""
