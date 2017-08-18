@@ -34,7 +34,7 @@ The entire pipeline for two-stream rcnn includes optical flow extraction, r-cnn 
 
 If you just want to get the final video AP, you [download](https://drive.google.com/open?id=0B-DiRMXFmUKQVDBRTy12UVJ2enM) the UCF101 linked results and run the eval_linked_results script. The folder 'action_results' includes linked results for UCF-Sports and JHMDB datasets.
 
-### video mAP results with different iou thresholds (withour multi-region scheme):
+### video mAP results with different iou thresholds (without multi-region scheme):
 
 |                | 0.2   | 0.5   | 0.75  | 0.5:0.95 |
 |----------------|-------|-------|-------|----------|
